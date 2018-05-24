@@ -10,6 +10,8 @@ This sample shows how to setup a project that has both a regular web site and an
 The API can be consumed by the web application with cookie authentication but can 
 also be consumed by external clients using JWT tokens obtained from the identity provider.
 
+This sample is for ASP.Net Core 1.
+
 ## Basics
 
 The WebAPI part is modeled as an [API in Auth0](https://auth0.com/docs/api-auth), with its own API identifier. 
