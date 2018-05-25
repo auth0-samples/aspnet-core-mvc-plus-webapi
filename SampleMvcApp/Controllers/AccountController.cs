@@ -1,24 +1,34 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http.Authentication;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 
 namespace SampleMvcApp.Controllers
 {
     public class AccountController : Controller
-    {
-        public IActionResult Login(string returnUrl = "/")
+    { 
+        public async Task Login(string returnUrl = "/")
         {
-            return new ChallengeResult("Auth0", new AuthenticationProperties() { RedirectUri = returnUrl });
+            await HttpContext.ChallengeAsync("Auth0", new AuthenticationProperties() { RedirectUri = returnUrl });
         }
 
         [Authorize]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
-            HttpContext.Authentication.SignOutAsync("Auth0");
-            HttpContext.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-            return RedirectToAction("Index", "Home");
+            //await HttpContext.SignOutAsync("Auth0", new AuthenticationProperties
+            //{
+            //    // Indicate here where Auth0 should redirect the user after a logout.
+            //    // Note that the resulting absolute Uri must be whitelisted in the 
+            //    // **Allowed Logout URLs** settings for the client.
+            //    RedirectUri = Url.Action("Index", "Home")
+            //});
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return this.RedirectToAction("Index", "Home");
         }
 
         /// <summary>
@@ -28,6 +38,11 @@ namespace SampleMvcApp.Controllers
         /// <returns></returns>
         [Authorize]
         public IActionResult Claims()
+        {
+            return View();
+        }
+
+        public IActionResult AccessDenied()
         {
             return View();
         }

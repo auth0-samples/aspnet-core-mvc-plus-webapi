@@ -10,6 +10,8 @@ This sample shows how to setup a project that has both a regular web site and an
 The API can be consumed by the web application with cookie authentication but can 
 also be consumed by external clients using JWT tokens obtained from the identity provider.
 
+This sample is for .Net Core 2. If you want a sample for .Net Core 1, look at the `v1` branch.
+
 ## Basics
 
 The WebAPI part is modeled as an [API in Auth0](https://auth0.com/docs/api-auth), with its own API identifier. 
@@ -49,7 +51,6 @@ Be sure to update the `appsettings.json` with your Auth0 settings:
     "Domain": "Your Auth0 domain",
     "ClientId": "Your Auth0 Client Id",
     "ClientSecret": "Your Auth0 Client Secret",
-    "CallbackUrl": "http://localhost:5000/signin-auth0",
     "ApiIdentifier": "your API identifier"
   } 
 }
@@ -78,33 +79,12 @@ Once you have the access token, you can try the endpoint from Postman as explain
 
 ## Important Snippets
 
-The code is based on the https://github.com/auth0-samples/auth0-aspnetcore-sample/tree/master/01-Login code,
-we a few modifications.
 The API will accept both a cookie from an authenticated user of the app, 
 as well as a JWT token.
 
+### 1. Add the Cookie and OIDC Middleware
 
-### 1. Add the JWT Middleware first
-
-
-We setup the JWT middleware fist, so that it takes precedence 
-over the cookie middleware.
-The middleware will look for a valid JWT token in the Authentication
-header, and set up a corresponding Principal if found.
-
-```csharp
-// Set up JWT Bearer authentication first 
-app.UseJwtBearerAuthentication(new JwtBearerOptions
-{
-    Audience = auth0Settings.Value.ApiIdentifier,
-    Authority = $"https://{auth0Settings.Value.Domain}"
-});
-```
-
-
-### 2. Add the Cookie and OIDC Middleware
-
-We also configure the cookie middleware in a fairly standard way, with one difference:
+We configure the cookie middleware in a fairly standard way, with one difference:
 by default the cookie middleware will challenge the OIDC middleware for a login if the
 user tries to access a protected resource. 
 For API calls, we don't want a redirect to the login page, instead we need a simple
@@ -112,14 +92,8 @@ For API calls, we don't want a redirect to the login page, instead we need a sim
 to detect an API call. 
 
 ```csharp
-// Add the cookie middleware
-app.UseCookieAuthentication(new CookieAuthenticationOptions
-{
-    AutomaticAuthenticate = true,
-    AutomaticChallenge = true,
-    Events = new CookieAuthenticationEvents()
-    {
-        OnRedirectToLogin = ctx =>
+seerices.AddCookie(options => {
+    options.Events.OnRedirectToLogin = ctx =>
         {
             // if it is an ajax/api request, don't redirect
             // to login page.
@@ -130,9 +104,8 @@ app.UseCookieAuthentication(new CookieAuthenticationOptions
             }
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return ctx.Response.WriteAsync("Unauthorized");
-        }
-    }
-});
+        };
+})
 ```
 
 The `IsAjaxRequest` and `IsApiRequest` are provided as sample, feel free
@@ -153,5 +126,34 @@ private static bool IsAjaxRequest(HttpRequest request)
 private static bool IsApiRequest(HttpRequest request)
 {
     return request.Path.StartsWithSegments(new PathString("/api"));
+}
+```
+
+### 2. Add the JWT Middleware
+
+The middleware will look for a valid JWT token in the Authentication
+header, and set up a corresponding Principal if found.
+
+```csharp
+services.AddJwtBearer(options => {
+    options.Authority = $"https://{Configuration["Auth0:Domain"]}";
+    options.Audience = Configuration["Auth0:ApiIdentifier"];
+});
+```
+
+### 3. Configure authorization in your API controllers/actions
+
+By default, the `AuthorizeAttribute` will use the first authentication scheme defined (Cookies). You can list
+multiple authentication schemes (either comma-separated or using multiple attributes) to allow both cookies and JWT bearer:
+
+```csharp
+// This API will accept both cookie authentication and JWT bearer authentication.
+[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+[Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]         
+[HttpGet]
+[Route("ping/secure")]
+public string PingSecured()
+{
+    return "All good " + this.User.FindFirst(ClaimTypes.NameIdentifier).Value + ". You only get this message if you are authenticated.";
 }
 ```

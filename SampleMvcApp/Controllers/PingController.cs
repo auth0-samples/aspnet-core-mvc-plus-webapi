@@ -1,6 +1,9 @@
-﻿using System.Linq;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace SampleMvcApp.Controllers
 {
@@ -14,7 +17,9 @@ namespace SampleMvcApp.Controllers
             return "Pong";
         }
 
-        [Authorize]
+        // This API will accept both cookie authentication and JWT bearer authentication.
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]         
         [HttpGet("claims")]
         public object Claims()
         {
@@ -26,12 +31,14 @@ namespace SampleMvcApp.Controllers
             });
         }
 
-        [Authorize]
+        // This API will accept both cookie authentication and JWT bearer authentication.
+        [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize(AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]         
         [HttpGet]
         [Route("ping/secure")]
         public string PingSecured()
         {
-            return "All good. You only get this message if you are authenticated.";
+            return "All good " + this.User.FindFirst(ClaimTypes.NameIdentifier).Value + ". You only get this message if you are authenticated.";
         }
     }
 }
